@@ -10,7 +10,7 @@ tracks:
       -i :{release_inc}
     - git-bloom-generate -y rosrpm --prefix release/:{ros_distro} :{ros_distro} -i
       :{release_inc}
-    devel_branch: indigo
+    devel_branch: master
     name: opencv2
     patches: null
     release_inc: -1
