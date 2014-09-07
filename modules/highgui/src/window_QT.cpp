@@ -76,6 +76,9 @@ static const unsigned int threshold_zoom_img_region = 30;
 static CvWinProperties* global_control_panel = NULL;
 //end static and global
 
+
+Qt::ConnectionType autoBlockingConnection();
+
 Qt::ConnectionType autoBlockingConnection() {
   return (QThread::currentThread() != QApplication::instance()->thread())
       ? Qt::BlockingQueuedConnection
@@ -470,7 +473,6 @@ CV_IMPL int cvNamedWindow(const char* name, int flags)
 {
     if (!guiMainThread)
         guiMainThread = new GuiReceiver;
-    //if (multiThreads)
     if (QThread::currentThread() != QApplication::instance()->thread()) {
         multiThreads = true;
         QMetaObject::invokeMethod(guiMainThread,
@@ -655,12 +657,17 @@ CV_IMPL void cvShowImage(const char* name, const CvArr* arr)
 {
     if (!guiMainThread)
         guiMainThread = new GuiReceiver;
-
-    QMetaObject::invokeMethod(guiMainThread,
-        "showImage",
-        autoBlockingConnection(),
-        Q_ARG(QString, QString(name)),
-        Q_ARG(void*, (void*)arr));
+    if (QThread::currentThread() != QApplication::instance()->thread()) {
+        multiThreads = true;
+        QMetaObject::invokeMethod(guiMainThread,
+            "showImage",
+             autoBlockingConnection(),
+             Q_ARG(QString, QString(name)),
+             Q_ARG(void*, (void*)arr)
+        );
+     } else {
+        guiMainThread->showImage(QString(name), (void*)arr);
+     }
 }
 
 
@@ -730,6 +737,9 @@ double cvGetOpenGlProp_QT(const char* name)
 GuiReceiver::GuiReceiver() : bTimeOut(false), nb_windows(0)
 {
     doesExternalQAppExist = (QApplication::instance() != 0);
+    if ( doesExternalQAppExist ) {
+        moveToThread(QApplication::instance()->thread());
+    }
     icvInitSystem(&parameterSystemC, parameterSystemV);
 
     timer = new QTimer(this);
@@ -1520,7 +1530,6 @@ CvWinProperties::~CvWinProperties()
 CvWindow::CvWindow(QString name, int arg2)
 {
     type = type_CvWindow;
-    moveToThread(qApp->instance()->thread());
 
     param_flags = arg2 & 0x0000000F;
     param_gui_mode = arg2 & 0x000000F0;
